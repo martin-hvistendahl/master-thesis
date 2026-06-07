@@ -1,0 +1,16 @@
+
+Dataset scale:
+- Unique movement intervals in lift log: 8935
+- Unique lift intervals with aligned sensor data: 8935
+- Unique sensor tags: 723
+- Raw sensor observations aligned to lifts: 1189544747
+- Median observations per lift: 91180
+- Mean observations per lift: 133133.16
+- P95 observations per lift: 384054
+- Maximum observations in one lift: 4298620
+
+Tag-count concentration:
+- Top 6 tags share: 45.35%
+- Top 10 tags share: 55.42%
+- Top 30 tags share: 75.99%
+- 80% of observations reached at tag rank: 37

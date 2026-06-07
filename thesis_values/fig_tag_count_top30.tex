@@ -1,0 +1,84 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+    \begin{axis}[
+        width=\linewidth,
+        height=0.78\textheight,
+        xmode=log,
+        xlabel={Number of raw observations per tag},
+        ylabel={Sensor tag},
+        y dir=reverse,
+        ytick={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30},
+        yticklabels={
+{Drives.EmergRectifier.Power},
+{Drives.MainRectifier.Power},
+{Drives.MainRectifier.DCLinkVoltage},
+{Drives.EmergRectifier.DCLinkVoltage},
+{Drives.EmergRectifier.SupplyVoltage},
+{Drives.MainRectifier.SupplyVoltage},
+{General.BoomLoad},
+{Drives.Hoist\_Status.ActualTorque},
+{CBM.LuffingWinch\_Moment},
+{CBM.MainHoistWinch\_Moment},
+{Drives.Hoist\_Status.ActualCurrent},
+{General.HoistLoadPctSWL},
+{General.SlewMoment},
+{Drives.Boom\_Status.ActualTorque},
+{Drives.Hoist\_Status.ActualSpeed},
+{Drives.Boom\_Status.ActualCurrent},
+{Drives.SlewA\_Status.ActualTorque},
+{Drives.SlewB\_Status.ActualTorque},
+{Drives.Hoist\_Control.SpeedReference},
+{Drives.Hoist\_Status.ActualPower},
+{Drives.SlewA\_Status.ActualSpeed},
+{Drives.SlewB\_Status.ActualSpeed},
+{Joysticks.Hoist},
+{General.WindDirectionCrane},
+{Drives.Boom\_Status.ActualSpeed},
+{General.WindDirectionPlatform},
+{General.PedestalMoment},
+{CBM.SlewBearing\_Moment},
+{CBM.SlewGear\_Moment},
+{Energy.PACA.TotalActivePower}
+        },
+        yticklabel style={font=\scriptsize, text width=0.38\linewidth, align=right},
+        grid=both,
+        xmin=1000000
+    ]
+        \addplot+[only marks, mark=*, mark size=1.8pt] coordinates {
+(94845217,1)
+(94827904,2)
+(89619061,3)
+(88588072,4)
+(85852947,5)
+(85719119,6)
+(31721362,7)
+(31183714,8)
+(29326362,9)
+(27565544,10)
+(21035468,11)
+(20033189,12)
+(18783112,13)
+(16916638,14)
+(14183770,15)
+(13263477,16)
+(12192955,17)
+(12029450,18)
+(11572466,19)
+(11278013,20)
+(10186122,21)
+(10049808,22)
+(9511574,23)
+(9342351,24)
+(9339220,25)
+(9179517,26)
+(9137033,27)
+(9059053,28)
+(8980169,29)
+(8667226,30)
+        };
+    \end{axis}
+    \end{tikzpicture}
+    \caption{Top 30 sensor tags by number of raw observations in the lift-aligned dataset. A logarithmic x-axis is used because the tag counts span several orders of magnitude.}
+    \label{fig:tag-count-top30}
+\end{figure}

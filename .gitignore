@@ -1,0 +1,26 @@
+# Data (proprietary NOV export – never commit)
+*.csv
+*.zip
+/data/
+/Volumes/
+
+# Saved model artifacts
+*.joblib
+*.h5
+*.keras
+anomaly_model/
+anomaly_model_null_rows/
+anomaly_model_lstm_autoencoder/
+singel_tag_anomali/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
