@@ -5,8 +5,7 @@ Machine Learning-Based Anomaly Detection"** (NTNU, Department of Information Sec
 and Communication Technology).
 
 This repository contains **only the scripts that produce the results reported in the
-thesis**. Exploratory notebooks and abandoned approaches have been left out (see
-[What was deliberately excluded](#what-was-deliberately-excluded) at the bottom).
+thesis**. Exploratory notebooks and abandoned approaches have been left out
 
 The goal of this repo is to let the **next student pick up the work**: it documents,
 for each script, what it reads, what it writes, and where it appears in the thesis.
@@ -160,21 +159,3 @@ the pipeline. (`.tex` = figures/tables, `.tsv` = underlying values, `summary_val
   bucketing/interpolation assumptions.
 
 ---
-
-## What was deliberately excluded
-
-These existed in the working folder but are **not part of the final thesis results**, so
-they were left out to keep the handover clean:
-
-- **PCA on null rows** (`PCA NULL.py`, `PCA NULL Verifiction.py`) — PCA reconstruction
-  variant; not reported in Chapter 5.
-- **LOF on lift-log** (`LOF on liftlog.py`) — Local Outlier Factor on lift-log summary
-  stats; not in the thesis.
-- **`Big boot.py`** — large scratch notebook (early alarm-based supervised
-  experiments); superseded by the unsupervised pipeline above.
-- **`Testing out idees/`** — early experiments (bucket testing, brute-force grouping,
-  median/zero fill trials, simple regression, pivot tests).
-- **`Initial data testing.py`, `Testing & Experiments on Overload crane data.py`** —
-  one-off data exploration.
-
-If you need any of these for context, they remain in the original thesis archive.
