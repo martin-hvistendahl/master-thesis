@@ -1,161 +1,86 @@
-# Offshore Crane Sensor Data – Anomaly Detection Pipeline
+# Offshore crane anomaly detection
 
-Code accompanying the master's thesis **"Structuring Offshore Crane Sensor Data for
-Machine Learning-Based Anomaly Detection"** (NTNU, Department of Information Security
-and Communication Technology).
+This is the code for my master's thesis, *Structuring Offshore Crane Sensor Data for
+Machine Learning-Based Anomaly Detection* (NTNU). If you're the next person picking this
+up, this README is mainly for you.
 
-This repository contains **only the scripts that produce the results reported in the
-thesis**. Exploratory notebooks and abandoned approaches have been left out
+Heads up: this isn't everything I wrote during the project, just the parts that actually
+matter for the results in the thesis. I left out the dead ends and the scratch notebooks
+so you don't have to guess what's relevant.
 
-The goal of this repo is to let the **next student pick up the work**: it documents,
-for each script, what it reads, what it writes, and where it appears in the thesis.
+## Before you start
 
----
+Everything here is a Databricks notebook. They're saved as `.py` so git can track them,
+but each one starts with `# Databricks notebook source` and the cells are split by
+`# COMMAND ----------`. Easiest thing is to import the `.py` files straight into a
+Databricks workspace.
 
-## 1. Environment
+You'll need PySpark, plus pandas, numpy, scipy, scikit-learn and joblib. The LSTM
+notebook also installs tensorflow at the top with `%pip install tensorflow`.
 
-All scripts are **Databricks notebooks** (each starts with `# Databricks notebook source`
-and uses `spark`, `dbutils`, and `display`). They are stored here as `.py` for version
-control. To run them, import the `.py` files into a Databricks workspace, or copy the
-cells (`# COMMAND ----------` marks each cell boundary).
+The actual crane data isn't in here. It's NOV's data and it's not public, so you'll have
+to get that separately. A few other things you'll have to fix for your own setup: the
+file paths (the `/Volumes/craneds_dev/...` stuff) and the Spark table names like
+`default.df_all_raw_liftid`. Those are hard-coded to my workspace.
 
-- **Cluster:** PySpark + Python 3
-- **Python libraries:** `pandas`, `numpy`, `scipy`, `scikit-learn`, `joblib`; the LSTM
-  script additionally needs `tensorflow` (installed in-notebook with `%pip install tensorflow`).
-- **Data:** proprietary NOV crane export (raw sensor CSVs, lift logs, alarm logs). The
-  data is **not** included in this repo and is not public.
+## How it's laid out
 
-> Paths such as `/Volumes/craneds_dev/maxedge_lhdp/crane_files/...` and Spark table
-> names such as `default.df_all_raw_liftid` are environment-specific. A new user must
-> update these to match their own workspace.
+There are three stages and they build on each other, so the first time through you have
+to run them in order. After that you can mostly jump around.
 
----
+**`0_setup_and_database/`** — getting the raw export into something usable. This unzips
+and sorts the CSVs, loads them into Spark tables, works out the dataset-scale numbers
+(lift count, tag count, observations per lift), and then does the tag grouping. The
+grouping script (`04_tag_coactivity_grouping.py`) is the important one — it's where the
+Jaccard co-activity + hierarchical clustering happens that gives you the nine signal
+groups the whole thesis is built on. The bucket sizes per group live in there too.
 
-## 2. How the pipeline fits together
+**`1_data_validation/`** — `05_train_test_compatibility.py` compares the training crane
+against the overload-test crane after preprocessing and finds the tags that are logged
+so differently between the two that they'd wreck the models (the model would just learn
+"these two cranes log differently" instead of anything about crane behaviour). Those
+tags get dropped. This is section 4.6 / 5.1 in the thesis.
 
-The pipeline has three stages. Each stage **writes artifacts that the next stage reads**,
-so they must be run in order the first time.
+**`2_models/`** — the four methods, one folder each: Isolation Forest with
+interpolation, Isolation Forest on complete rows only (null-row), single-tag Isolation
+Forest, and the LSTM autoencoder. Each folder has a `train_` script and a `verify_`
+script. Train fits the per-group models plus the meta-model and saves them with joblib;
+verify loads those saved models back and scores the overload data, which is what
+produces the rankings in chapter 5. So if you retrain, run train first, then verify.
 
-```
- RAW NOV EXPORT (zips of CSVs)
-        │
-        ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ STAGE 0 — Setup & database  (0_setup_and_database/)          │
- │   01 unzip & sort → 02 load into Spark tables                │
- │   03 lift summary (dataset scale)                            │
- │   04 tag co-activity → the 9 signal groups                   │
- │   WRITES: Spark tables  default.df_all_raw_liftid,           │
- │           default.all_liftlog, default.df_alarms, ...        │
- └─────────────────────────────────────────────────────────────┘
-        │
-        ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ STAGE 1 — Data validation  (1_data_validation/)             │
- │   05 train vs. overload-test compatibility check            │
- │   USES the tables from Stage 0; decides which tags are       │
- │   safe to model (drops extreme train/test imbalance)         │
- └─────────────────────────────────────────────────────────────┘
-        │
-        ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ STAGE 2 — Models  (2_models/)                               │
- │   For each method:  train_*  →  saves model to MODEL_DIR     │
- │                     verify_* →  loads model, scores overload │
- │   Methods: IF-interpolation, IF-nullrow,                     │
- │            single-tag IF, LSTM autoencoder                   │
- └─────────────────────────────────────────────────────────────┘
-        │
-        ▼
-   Lift-level anomaly rankings, per-group rates, driver summaries
-   (these are the tables in thesis Chapter 5)
-```
+One thing worth knowing: the three "stacked" model scripts (the two interpolation ones
+and the LSTM) all start with the *same* preprocessing block — groups, bucket sizes,
+pivot, missing-value handling. I kept them self-contained on purpose so each notebook
+runs on its own, but if you want to clean things up, that repeated block is the obvious
+thing to pull out into a shared module.
 
-**Shared preprocessing.** The three "stacked-generation" model scripts
-(IF-interpolation, IF-nullrow, LSTM) each begin with the *same* preprocessing block:
-the 9 activity-based tag groups, the group-specific bucket sizes, pivoting to wide
-format, and rule-based missing-value handling (zero-fill + distance-weighted
-interpolation). This is intentional — each notebook is self-contained so it can be run
-on its own. If you refactor, this block is the natural thing to pull into a shared module.
+## The nine groups
 
----
+These come out of `04_tag_coactivity_grouping.py` and every model reuses them. Bucket
+size is how wide the time buckets are for that group:
 
-## 3. Run order and what each script does
+| Group | Bucket | What's in it |
+|-------|--------|--------------|
+| always_on | 5 s | baseline signals logged the whole lift |
+| hoist_active | 5 s | hoist motion |
+| boom_active | 5 s | boom motion |
+| slew_active | 5 s | slew motion |
+| hyd_common | 10 s | brake pressures |
+| thermal_drive | 30 s | drive-side temps |
+| slew_power | 60 s | sparse slew power / torque-limit events |
+| thermal_resistor | 120 s | brake resistor + coolant temps |
+| thermal_motor | 300 s | motor temps |
 
-### Stage 0 — `0_setup_and_database/`
+## thesis_values/
 
-| # | File | What it does | Thesis |
-|---|------|--------------|--------|
-| 01 | `01_unzip_and_sort_logfiles.py` | Unzips the raw NOV export and sorts the CSVs into categories (`raw`, `liftlog`, `alarms`, `eventlog`, `annotations`). | §2.7 |
-| 02 | `02_load_data_into_tables.py` | Reads the categorized CSVs into Spark and writes the core tables used everywhere downstream (raw-with-lift-id, lift log, alarms). Also checks movement-type distribution. | §2.7, §4.2 |
-| 03 | `03_lift_summary_and_dataset_scale.py` | Computes dataset-scale statistics (lift count, tag count, observations per lift) and the tag-frequency / subsystem breakdowns. Produces the values exported to `thesis_values/`. | §2.7, Tables 2.1–2.2, Figs 2.3–2.6 |
-| 04 | `04_tag_coactivity_grouping.py` | Builds the per-bucket presence matrix, computes **Jaccard co-activity** between tags, runs **hierarchical agglomerative clustering**, and derives the **9 activity-based signal groups** + per-group bucket sizes. This is the core grouping contribution. | §3.4.3, §4.4, Tables 4.3–4.5 |
+These are the numbers and figure data that got generated by the setup scripts and pasted
+into the Overleaf document. You don't need them to run anything — I just kept them around
+so it's clear where the numbers in the thesis came from.
 
-### Stage 1 — `1_data_validation/`
+## If you're continuing the work
 
-| # | File | What it does | Thesis |
-|---|------|--------------|--------|
-| 05 | `05_train_test_compatibility.py` | Compares the **training crane** against the **overload-test crane** after preprocessing: missing-value %, distributions, tag-logging imbalance. Identifies tags to exclude so models detect crane behaviour, not logging differences. | §4.6, §5.1, Tables 4.6–4.7, 5.1–5.3 |
-
-### Stage 2 — `2_models/`
-
-Each method has a **train** script (fits per-group specialist models + a meta-model and
-saves them) and a **verify** script (loads the saved models and scores the overload-test
-data → the rankings in Chapter 5).
-
-| Folder | Train → Verify | Method | Saves to | Thesis |
-|--------|----------------|--------|----------|--------|
-| `isolation_forest_interpolation/` | `train_…` → `verify_…` | Isolation Forest on grouped, interpolated windows (full representation) | `anomaly_model/` | §3.6.2, §5.3 |
-| `isolation_forest_nullrow/` | `train_…` → `verify_…` | Isolation Forest on complete rows only (no interpolation) | `anomaly_model_null_rows/` | §3.6.2, §5.4 |
-| `single_tag_isolation_forest/` | `train_…` → `verify_…` | One Isolation Forest **per tag** (interpretable, signal-level) | `singel_tag_anomali/` | §3.6.2, §5.5 |
-| `lstm_autoencoder/` | `train_…` → `verify_…` | Sequence-to-sequence LSTM autoencoder; reconstruction error = anomaly score | `anomaly_model_lstm_autoencoder/` | §2.4.2, §3.6.3, §5.6 |
-
-**Model artifacts (per group, written by the train scripts):** `config.json`,
-`scaler_<group>.joblib`, `specialist_<group>.joblib`, and `meta_model.joblib`. The
-verify scripts read exactly these, so keep the file names and column order consistent
-if you retrain.
-
-**Thresholding.** Anomaly flags use a **robust IQR-based lower bound** on the score
-distribution (not a fixed contamination fraction), matching thesis §3.6.5.
-
----
-
-## 4. The 9 signal groups (reference)
-
-Defined in `04_tag_coactivity_grouping.py` and reused by every model script
-(thesis Table 4.3):
-
-| Group | Bucket size ∆t | Description |
-|-------|----------------|-------------|
-| `always_on` | 5 s | Baseline signals logged throughout every lift |
-| `hoist_active` | 5 s | Active during hoist motion |
-| `boom_active` | 5 s | Active during boom motion |
-| `slew_active` | 5 s | Active during slew motion |
-| `hyd_common` | 10 s | Brake pressures, active across most lift phases |
-| `thermal_drive` | 30 s | Drive-side depletion-layer temperatures |
-| `slew_power` | 60 s | Sparse slew power / torque-limit events |
-| `thermal_resistor` | 120 s | Brake resistor & coolant temperatures |
-| `thermal_motor` | 300 s | Motor temperatures |
-
----
-
-## 5. `thesis_values/`
-
-Generated numbers, tables, and TikZ figure data produced by Stage 0 (mainly
-`03_lift_summary_and_dataset_scale.py`) and pasted into the Overleaf thesis. Kept here
-as **provenance** linking the code to the numbers in the document — not required to run
-the pipeline. (`.tex` = figures/tables, `.tsv` = underlying values, `summary_values.txt`
-= scalar values cited in text.)
-
----
-
-## 6. Suggested next steps (from thesis §6.6 Future work)
-
-- Connect anomaly rankings to **stronger ground truth** (maintenance/inspection records).
-- Train **movement-type-specific** models and thresholds.
-- Calibrate thresholds — the LSTM currently flags almost everything, so it is useful for
-  *ranking* but not yet for operational decisions.
-- Investigate models that handle irregular sampling natively, to reduce reliance on
-  bucketing/interpolation assumptions.
-
----
+A few directions I'd have gone next if I'd had more time: get hold of actual maintenance
+or inspection records so the anomalies can be checked against real ground truth instead
+of just ranked; train separate models per movement type instead of one global notion of
+"normal"; and sort out the thresholds, because the LSTM basically flags everything right
+now, so it's fine for ranking but not for any kind of real decision yet.
