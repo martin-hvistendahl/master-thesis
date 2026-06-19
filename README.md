@@ -1,7 +1,6 @@
 # Offshore crane anomaly detection
 
-This is the code for my master's thesis, *Structuring Offshore Crane Sensor Data for
-Machine Learning-Based Anomaly Detection* (NTNU). If you're the next person picking this
+This is the code for my master's thesis, *Structuring Heterogeneous Offshore Crane Sensor Data for Unsupervised Anomaly Detection* (NTNU). If you're the next person picking this
 up, this README is mainly for you.
 
 Heads up: this isn't everything I wrote during the project, just the parts that actually
